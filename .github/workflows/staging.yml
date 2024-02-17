@@ -13,26 +13,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # - name: Set up Docker Buildx
-      #   uses: docker/setup-buildx-action@v1
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
 
-      # - name: Build Docker image
-      #   run: |
-      #     docker build . -t null_jobs_backend:latest
+      - name: Build Docker image
+        run: |
+          docker build . -t null_jobs_backend:latest
 
-      # - name: Save Docker image as tar
-      #   if: success()
-      #   run: docker save null_jobs_backend:latest > .tar
-
-
-      # - name: Check if everything is in place
-      #   run: |
-      #     touch .env
-      #     echo "Server host ${{ secrets.SERVER_HOST }}" >> .env
-      #     echo "Server username ${{ secrets.SERVER_USERNAME }}" >> .env
-      #     echo "Server ssh key ${{ secrets.SERVER_SSH_KEY }}" >> .env
-      #     ls | grep *.tar
-      #     cat .env
+      - name: Save Docker image as tar
+        if: success()
+        run: docker save null_jobs_backend:latest > null_job_backend_latest.tar
 
       - name: Transfer Docker image to server
         uses: appleboy/scp-action@v0.1.7
@@ -40,8 +30,8 @@ jobs:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USERNAME }}
           key: ${{ secrets.SERVER_SSH_KEY }}
-          source: Caddyfile
-          target: Caddyfiletest
+          source: null_job_backend_latest.tar
+          target: null_job_backend_latest.tar
 
       - name: SSH into server and deploy
         uses: appleboy/ssh-action@master
@@ -49,10 +39,10 @@ jobs:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USERNAME }}
           key: ${{ secrets.SERVER_SSH_KEY }}
-          # script: |
-          #   sudo docker load -i /tmp/null_jobs_backend_latest.tar
-          #   sudo docker stop null_jobs_backend || true
-          #   sudo docker rm null_jobs_backend || true
-          #   sudo docker run -d --name null_jobs_backend -p 8080:8080 null_jobs_backend:latest
-          script: touch action.txt
+          script: |
+            sudo docker load -i /tmp/null_jobs_backend_latest.tar
+            sudo docker stop null_jobs_backend || true
+            sudo docker rm null_jobs_backend || true
+            sudo docker run -d --name null_jobs_backend -p 8080:8080 null_jobs_backend:latest
+          # script: touch action.txt
         
