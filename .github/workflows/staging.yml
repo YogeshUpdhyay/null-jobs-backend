@@ -27,6 +27,7 @@ jobs:
 
       - name: Check if everything is in place
         run: 
+          touch .env
           echo "Server host ${{ secrets.SERVER_HOST }}" >> .env
           echo "Server username ${{ secrets.SERVER_USERNAME }}" >> .env
           echo "Server ssh key ${{ secrets.SERVER_SSH_KEY }}" >> .env
