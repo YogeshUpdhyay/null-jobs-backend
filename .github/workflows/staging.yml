@@ -27,9 +27,9 @@ jobs:
 
       - name: Check if everything is in place
         run: 
-          echo ${{ secrets.SERVER_HOST }}
-          echo ${{ secrets.SERVER_USERNAME }}
-          echo ${{ secrets.SERVER_SSH_KEY }}
+          echo "Server host ${{ secrets.SERVER_HOST }}"
+          echo "Server username ${{ secrets.SERVER_USERNAME }}"
+          echo "Server ssh key ${{ secrets.SERVER_SSH_KEY }}"
           ls | grep *.tar
 
       - name: Transfer Docker image to server
