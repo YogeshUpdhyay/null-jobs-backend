@@ -21,15 +21,16 @@ jobs:
           docker build . -t null_jobs_backend:latest
 
       - name: Save Docker image as tar
+        if: success()
         run: docker save null_jobs_backend:latest > .tar
 
 
       - name: Check if everything is in place
-        run: |
-          ls -l
+        run: 
           echo ${{ secrets.SERVER_HOST }}
           echo ${{ secrets.SERVER_USERNAME }}
           echo ${{ secrets.SERVER_SSH_KEY }}
+          ls | grep *.tar
 
       - name: Transfer Docker image to server
         uses: appleboy/scp-action@v0.1.7
