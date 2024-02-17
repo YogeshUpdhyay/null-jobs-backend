@@ -27,10 +27,11 @@ jobs:
 
       - name: Check if everything is in place
         run: 
-          echo "Server host ${{ secrets.SERVER_HOST }}"
-          echo "Server username ${{ secrets.SERVER_USERNAME }}"
-          echo "Server ssh key ${{ secrets.SERVER_SSH_KEY }}"
+          echo "Server host ${{ secrets.SERVER_HOST }}" >> .env
+          echo "Server username ${{ secrets.SERVER_USERNAME }}" >> .env
+          echo "Server ssh key ${{ secrets.SERVER_SSH_KEY }}" >> .env
           ls | grep *.tar
+          cat .env
 
       - name: Transfer Docker image to server
         uses: appleboy/scp-action@v0.1.7
