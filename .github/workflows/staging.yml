@@ -31,7 +31,7 @@ jobs:
           username: ${{ secrets.SERVER_USERNAME }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           source: null_job_backend_latest.tar
-          target: null_job_backend_latest.tar
+          target: /tmp/null_job_backend_latest.tar
 
       - name: SSH into server and deploy
         uses: appleboy/ssh-action@master
@@ -40,9 +40,9 @@ jobs:
           username: ${{ secrets.SERVER_USERNAME }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
-            sudo docker load -i /tmp/null_jobs_backend_latest.tar
-            sudo docker stop null_jobs_backend || true
-            sudo docker rm null_jobs_backend || true
-            sudo docker run -d --name null_jobs_backend -p 8080:8080 null_jobs_backend:latest
+            docker load -i /tmp/null_job_backend_latest.tar/null_job_backend_latest.tar
+            docker stop null_jobs_backend || true
+            docker rm null_jobs_backend || true
+            docker run -d --name null_jobs_backend -p 8080:8080 null_jobs_backend:latest
           # script: touch action.txt
         
