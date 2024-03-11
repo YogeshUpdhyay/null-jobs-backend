@@ -20,7 +20,8 @@
       "industry": "Consultation",
       "job_responsibilities": "Handling Sales Department",
       "skills_required": "MBA, BBA",
-      "education_or_certifications": "12th Standard, BBA"
+      "education_or_certifications": "12th Standard, BBA",
+      "is_active": 1
     }
   },
   {
@@ -44,7 +45,8 @@
       "industry": "IT and Networks",
       "job_responsibilities": "Low level code development, automation",
       "skills_required": "C++ Development, win32 API, Python, Automation",
-      "education_or_certifications": "BCA, B.Tech"
+      "education_or_certifications": "BCA, B.Tech",
+      "is_active": 1
     }
   },
   {
@@ -68,7 +70,8 @@
       "industry": "Investment and venture capital",
       "job_responsibilities": "Management Handling, Excel, Outlook, Mail Communication with clients",
       "skills_required": "Excel, Mail, Fluent English, Tally, Accounts",
-      "education_or_certifications": "BBA CS"
+      "education_or_certifications": "BBA CS",
+      "is_active": 1
     }
   },
   {
@@ -92,7 +95,8 @@
       "industry": "Computer Network And Security",
       "job_responsibilities": "Server Management, Optimization, Database Management, API Development",
       "skills_required": "Programming Languages, API Development, Web Frameworks, Version Control",
-      "education_or_certifications": "B.TECH CS"
+      "education_or_certifications": "B.TECH CS",
+      "is_active": 1
     }
   },
   {
@@ -116,7 +120,8 @@
       "industry": "Computer Network And Security",
       "job_responsibilities": "Web App Security, API Security, Red Teaming",
       "skills_required": "Programming Languages, API Development, Web Frameworks, Version Control, API Security, Web Security, VAPT, Network Security",
-      "education_or_certifications": "B.TECH CS"
+      "education_or_certifications": "B.TECH CS",
+      "is_active": 1
     }
   },
   {
@@ -140,7 +145,8 @@
       "industry": "Computer Network And Security",
       "job_responsibilities": "Server Management, Optimization, Database Management, API Development",
       "skills_required": "Programming Languages, API Development, Web Frameworks, Version Control",
-      "education_or_certifications": "B.TECH CS"
+      "education_or_certifications": "B.TECH CS",
+      "is_active": 1
     }
   }
 ]

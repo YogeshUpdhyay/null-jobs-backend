@@ -14,6 +14,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
+from drf_yasg.utils import swagger_auto_schema
 
 from apps.accounts.models import *
 from apps.accounts.renderers import UserRenderer
@@ -21,26 +22,21 @@ from apps.accounts.serializers import *
 from apps.accounts.utils import *
 from apps.jobs.models import User as user_profile
 from apps.jobs.utils.validators import validationClass
+from apps.accounts.authentication import Authenctication as CustomAuth
 
-# from django.shortcuts import render
-
-
-# #google auth
-# from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
-# from allauth.socialaccount.providers.oauth2.client import OAuth2Client
-# from dj_rest_auth.registration.views import SocialLoginView
-
-
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("application")
 
 
 # Generate token Manually
 class TokenUtility:
     @staticmethod
     def get_tokens_for_user(user):
+        # getting tokens
         refresh = RefreshToken.for_user(user)
-        # custom_payload={"name":user.name,"email":user.email}
-        # refresh.payload.update(custom_payload)
+        access_token = refresh.access_token
+        
+        logger.debug(access_token)
+        
         return {
             "refresh": str(refresh),
             "access": str(refresh.access_token),
@@ -97,7 +93,9 @@ def generate_guest_token(user, purpose):
         otp, secret = OTP.generate_secret_with_otp()
         user.otp_secret = secret
         user.save()
-
+        
+    logger.debug(otp)
+    
     # Send Email
     if purpose == "verify":
         subject = "Verify your account"
@@ -110,15 +108,18 @@ def generate_guest_token(user, purpose):
         This otp is valid only for 5 minutes.
         """
     data = {"subject": subject, "body": body, "to_email": user.email}
-    Util.send_email(data)
+    
+    if not settings.DRY_RUN:
+        Util.send_email(data)
+        
     return token
 
 
-# Registering the user with otp verification and directly log in the user
 class UserRegistrationView(APIView):
+    
     renderer_classes = [UserRenderer]
 
-    def post(self, request, format=None):
+    def post(self, request):
         serializer = UserRegistrationSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         email = serializer.save()
@@ -185,32 +186,58 @@ class OTPVerificationCheckView(APIView):
 
 # Login the user and generate JWT token
 class UserLoginView(APIView):
+    serializer_class = UserLoginSerializer
     renderer_classes = [UserRenderer]
-
+    
+    @swagger_auto_schema(
+        operation_summary="Login API",
+        responses={200: UserLoginOutSerializer},
+        request_body=UserLoginSerializer,
+        tags=["auth"]
+    )
     def post(self, request, format=None):
+        # vaidating request payload
         serializer = UserLoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        
+        # fetching and authenticating user
         email = serializer.data.get("email")
         password = serializer.data.get("password")
+        
         user = authenticate(email=email, password=password)
-        if user is not None:
-            if user.is_verified:
-                token = TokenUtility.get_tokens_for_user(user)
-                return Response(
-                    {"token": token, "msg": "Login Success", "verify": True},
-                    status=status.HTTP_200_OK,
-                )
-            else:
-                token = generate_guest_token(user, "verify")
-                return Response(
-                    {"msg": "User not verified", "token": token, "verify": False},
-                    status=status.HTTP_200_OK,
-                )
-        else:
+        
+        # if the user is not present
+        if user is None: 
             return Response(
                 {"errors": {"non_field_errors": ["Email or Password is not valid"]}},
                 status=status.HTTP_404_NOT_FOUND,
             )
+        
+        # if the user is not verified then guest token to be used and sent 
+        # to redirection flow
+        if not user.is_verified:
+            token = generate_guest_token(user, "verify")
+            return Response(
+                {"msg": "User not verified", "token": token, "verify": False},
+                status=status.HTTP_200_OK,
+            )
+            
+        # user logged in
+        # token = TokenUtility.get_tokens_for_user(user)
+        # using alt login to reduce the database queries
+        auth = CustomAuth()
+        access_token, refresh_token = auth.get_tokens_for_user(user)
+        return Response({
+                "token": {
+                    "access": str(access_token), 
+                    "refresh": str(refresh_token)
+                }, 
+                "msg": "Login Success", 
+                "verify": True
+            }, status=status.HTTP_200_OK,
+        )
+            
+            
 
 
 # Show profile of logged in user
@@ -241,15 +268,13 @@ class UserLogOutView(APIView):
             token_obj = RefreshToken(refresh_token)
             token_obj.blacklist()
             return Response(
-                {
-                    "msg": "LogOut Successfully",
-                    # "token":access_token,
-                },
+                {"msg": "LogOut Successfully"},
                 status=status.HTTP_200_OK,
             )
         except Exception as e:
             return Response(
-                {"errors": {"msg": str(e)}}, status=status.HTTP_400_BAD_REQUEST
+                {"errors": {"msg": str(e)}}, 
+                status=status.HTTP_400_BAD_REQUEST
             )
 
 

@@ -68,6 +68,11 @@ class UserLoginSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ["email", "password"]
+        
+class UserLoginOutSerializer(serializers.Serializer):
+    token = serializers.CharField()
+    msg = serializers.CharField()
+    verify = serializers.BooleanField()
 
 
 # Serializer for showing User profile

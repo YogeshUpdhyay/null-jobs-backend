@@ -592,7 +592,9 @@ class JobViewSets(viewsets.ModelViewSet):
                 category_counts = {}
 
                 for job in job_data:
-                    category = job.category.lower().strip()
+                    category = "All"
+                    if job.category:
+                        category = job.category.lower().strip()
                     category_counts[category] = category_counts.get(category, 0) + 1
 
                 open_positions_in_category = [
@@ -608,7 +610,8 @@ class JobViewSets(viewsets.ModelViewSet):
                 "No jobs are present right now", status.HTTP_200_OK
             )
 
-        except Exception:
+        except Exception as e:
+            print(e)
             return response.create_response(
                 response.SOMETHING_WENT_WRONG, status.HTTP_400_BAD_REQUEST
             )

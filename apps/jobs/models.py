@@ -61,7 +61,7 @@ class Job(models.Model):
     updated_at = models.DateTimeField(auto_now=True)  # update timestamp on every save()
     employer_id = models.UUIDField(null=False, editable=True, default=None)
     job_type = models.CharField(max_length=80, choices=JOB_TYPE, null=False)
-    salary = models.DecimalField(max_digits=9, decimal_places=2)
+    salary = models.DecimalField(max_digits=9, decimal_places=2, null=True, default=None)
     qualifications = models.CharField(max_length=60, default=None, null=True)
     vacency_position = models.IntegerField(default=None, null=False)
     industry = models.CharField(max_length=50, default=None, null=False)

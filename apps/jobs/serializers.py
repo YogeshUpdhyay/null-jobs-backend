@@ -40,7 +40,10 @@ class JobSerializer(serializers.ModelSerializer):
         removing those fields from the serializer.data
         """
 
-        data = super().to_representation(instance)
+        try:
+            data = super().to_representation(instance)
+        except Exception as e:
+            data = {"error": {"message": "Something went wrong", "detail": str(e)}}
 
         if data:
             try:

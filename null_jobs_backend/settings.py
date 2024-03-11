@@ -150,6 +150,7 @@ EMAIL_PORT = os.getenv("EMAIL_PORT")
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL")
 EMAIL_USE_TLS = True
 
+DRY_RUN = os.environ.get("DRY_RUN", False) == "True"
 
 # JWT Configuration
 REST_FRAMEWORK = {
@@ -184,7 +185,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 from datetime import timedelta
 
 # Custom setting for controlling token expiration
-DISABLE_TOKEN_EXPIRATION = False
+DISABLE_TOKEN_EXPIRATION = True
 ENABLE_AUTHENTICATION = True
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(days=365)
@@ -252,3 +253,23 @@ AUTHENTICATION_BACKENDS = [
 SITE_ID = 2
 MEDIA_URL = "/media/"
 MEDIA_ROOT = os.path.join(BASE_DIR, "media")
+
+# settings.py
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'level': 'DEBUG',
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'loggers': {
+        'application': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+    },
+}
