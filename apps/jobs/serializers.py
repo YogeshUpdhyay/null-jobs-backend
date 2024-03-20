@@ -31,6 +31,7 @@ class JobSerializer(serializers.ModelSerializer):
 
         model = Job
         fields = "__all__"
+        read_only_fields = ["employer_id", "company"]
 
     def to_representation(self, instance):
         """
@@ -48,12 +49,12 @@ class JobSerializer(serializers.ModelSerializer):
                 data.update(
                     {
                         "description": {
-                            "About": data.pop("description", None),
-                            "Job Responsibilities": data.pop(
+                            "about": data.pop("about", None),
+                            "job_responsibilities": data.pop(
                                 "job_responsibilities", None
                             ),
-                            "Skills Required": data.pop("skills_required", None),
-                            "Educations/Certifications": data.pop(
+                            "skills_required": data.pop("skills_required", None),
+                            "education_or_certifications": data.pop(
                                 "education_or_certifications", None
                             ),
                         }
@@ -103,55 +104,49 @@ class CompanySerializer(serializers.ModelSerializer):
         return data
 
 
-class UserSerializer(serializers.ModelSerializer):
-    """User object serializer class"""
+class EducationSerializer(serializers.Serializer):
+    from_date = serializers.CharField()
+    till_date = serializers.CharField()
+    grade = serializers.CharField()
+    course = serializers.CharField()
+    university = serializers.CharField()
+    course_type = serializers.CharField()
 
-    class Meta:
-        model = User
-        fields = "__all__"
+class ProfessionalSkillsSerializer(serializers.Serializer):
+    last_used = serializers.IntegerField()
+    total_yoe = serializers.IntegerField()
+    skill_name = serializers.CharField()
 
-    def to_representation(self, instance):
-        """
-        Here, this method is used to combine some fields into one, and exclude
-        those fields. Also, we are handling one case to represent social_handles
-        as a list of strings
-        """
+class WorkExperienceSerializer(serializers.Serializer):
+    from_date = serializers.CharField()
+    till_date = serializers.CharField()
+    company_id = serializers.CharField()
+    description = serializers.CharField()
+    designation = serializers.CharField()
+    company_name = serializers.CharField()
+    found_through_null = serializers.BooleanField()
 
-        data = super().to_representation(instance)
-
-        if data:
-            # Extract the URLs from social handles
-            try:
-                instance.social_handles = data.pop("social_handles", "")
-                if instance.social_handles:
-                    found_url_patterns = findall(
-                        "((https?:\/\/)?[\w\.\/?=]+)", instance.social_handles
-                    )
-                    if found_url_patterns:
-                        instance.social_handles = [url[0] for url in found_url_patterns]
-
-                data.update(
-                    {
-                        "contact": {
-                            "address": data.pop("address", None),
-                            "phhone": data.pop("phone", None),
-                            "website": data.pop("website", None),
-                            "email": data.pop("email", None),
-                            "social_handles": instance.social_handles,
-                        }
-                    }
-                )
-
-            except Exception as err:
-                # We can also raise an exception here but this time, I am returning
-                # error message in the data
-                data = {
-                    "error": {
-                        "message": f"Something Went Wrong\n\nReason: {err.__str__()}"
-                    }
-                }
-
-        return data
+class UserSerializer(serializers.Serializer):
+    user_id = serializers.CharField(read_only=True)
+    name = serializers.CharField()
+    about = serializers.CharField()
+    resume = serializers.FileField(allow_null=True)
+    profile_picture = serializers.ImageField(allow_null=True)
+    cover_letter = serializers.FileField(allow_null=True)
+    user_type = serializers.CharField()
+    experience = serializers.CharField()
+    gender = serializers.CharField(allow_null=True)
+    age = serializers.IntegerField(allow_null=True)
+    education = EducationSerializer(many=True)
+    professional_skills = ProfessionalSkillsSerializer(many=True)
+    hiring_status = serializers.CharField()
+    profession = serializers.CharField()
+    work_experience = WorkExperienceSerializer(many=True)
+    address = serializers.CharField()
+    phone = serializers.CharField()
+    website = serializers.URLField()
+    email = serializers.EmailField()
+    social_handles = serializers.URLField(allow_null=True)
 
 
 class ApplicantsSerializer(serializers.ModelSerializer):

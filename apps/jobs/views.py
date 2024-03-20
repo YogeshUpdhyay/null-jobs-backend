@@ -12,7 +12,7 @@ from django.forms import ValidationError
 from django.http import FileResponse, JsonResponse
 from django.utils import datetime_safe, timezone
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import status, viewsets
+from rest_framework import status, viewsets, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.exceptions import MethodNotAllowed
@@ -92,7 +92,7 @@ class JobViewSets(viewsets.ModelViewSet):
         # overall data present in the Job, exception if wrong
         # uuid value is given.
         try:
-            jobs_data = self.queryset.filter(**filters_dict, is_created=True, is_deleted=False)
+            jobs_data = self.queryset.filter(**filters_dict, is_active=True, is_deleted=False)
         except django.core.exceptions.ValidationError as err:
             return response.create_response(err.messages, status.HTTP_404_NOT_FOUND)
         
@@ -124,29 +124,27 @@ class JobViewSets(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         """Overriding the create method to include permissions"""
 
-        employer_id = request.user_id
-
-        if not employer_id or not UserTypeCheck.is_user_employer(employer_id):
+        # validate if the user is eligible to create a job posting or not
+        if not request.user or not request.user.user_type == "Employer" or not request.user.is_profile_completed:
             return response.create_response(
-                response.PERMISSION_DENIED
-                + " You don't have permissions to create a job",
-                status.HTTP_401_UNAUTHORIZED,
+                response.PERMISSION_DENIED + " You don't have permissions to create a job",
+                status.HTTP_401_UNAUTHORIZED
             )
 
-        # Add employer_id to the request.data
-        request.data["employer_id"] = employer_id
+        # fetching user profile to get the company to which
+        # they belong to you
+        user_data = User.objects.get(user_id = request.user.id)
+        request.data["company"] = user_data.company_id
+        request.data["employer_id"] = request.user.id
+        
+        job = Job(**request.data)
+        job.save()
 
-        # Get company_id that belongs to the employer_id
-        user_data = User.objects.filter(user_id=employer_id).first()
-        company_details = user_data.company
-        if not company_details:
-            return response.create_response(
-                "Invalid or Missing Company Details",
-                status.HTTP_404_NOT_FOUND
-            )
-        request.data["company"] = company_details.company_id
-        return super().create(request, *args, **kwargs)
-
+        return Response(
+            {"msg": "Created", "job_id": job.job_id},
+            status=status.HTTP_201_CREATED
+        )
+    
     @action(detail=False, methods=["get"], url_path="details")
     def details(self, request, *args, **kwargs):
         """
@@ -195,7 +193,7 @@ class JobViewSets(viewsets.ModelViewSet):
         for jobdata in serialized_data.data:
             job_id = jobdata.get(values.JOB_ID)
             number_of_applicants = Applicants.objects.filter(job_id=job_id).count()
-            jobdata.update({"Number of Applicants": number_of_applicants})
+            jobdata.update({"no_of_applicants": number_of_applicants})
 
         return serialized_data
 
@@ -273,7 +271,7 @@ class JobViewSets(viewsets.ModelViewSet):
         """Apply job functionality implementation"""
 
         job_id = pk
-        user_id = request.user_id
+        user_id = request.user.id
 
         # validate, if both of them exists or not
         validate_ids = ((job_id, "job-id", Job), (user_id, "user-id", User))
@@ -655,6 +653,7 @@ class UserViewSets(viewsets.ModelViewSet):
 
     queryset = User.objects.all()
     serializer_class = UserSerializer
+    permission_classes = [permissions.IsAuthenticated]
 
     @extend_schema(exclude=True)
     def create(self, request, *args, **kwargs):
@@ -714,44 +713,12 @@ class UserViewSets(viewsets.ModelViewSet):
                 response.REQUEST_BODY_NOT_PRESENT, status.HTTP_400_BAD_REQUEST
             )
 
-        validator = validationClass()
-
-        if request.FILES:
-            # resume validation
-            resume_data = request.FILES.get("resume")
-            if resume_data:
-                validation_result = validator.resume_validation(resume_data)
-                if not validation_result[0]:
-                    return Response(
-                        {"message": validation_result[1]},
-                        status=status.HTTP_406_NOT_ACCEPTABLE,
-                    )
-
-            # image validation
-            image_data = request.FILES.get("profile_picture")
-            if image_data:
-                validation_result = validator.image_validation(image_data)
-                if not validation_result[0]:
-                    return Response(
-                        {"message": validation_result[1]},
-                        status=status.HTTP_406_NOT_ACCEPTABLE,
-                    )
-
         # Get the user-id from access-token, and update will be performed
         # only on the user-id present in access-token, not the one we get from
         # the API endpoint.
 
-        user_id = request.user_id
-
-        # get data from the request
+        user_id = request.user.id
         user_data = request.data
-
-        # validate some data first
-        try:
-            validationClass.validate_fields(user_data)
-
-        except Exception as err:
-            return response.create_response(err.__str__(), status.HTTP_400_BAD_REQUEST)
 
         try:
             # update in the tbl_user_profile
@@ -771,6 +738,7 @@ class UserViewSets(viewsets.ModelViewSet):
             )
         except Exception as err:
             print("Exception occurred while updating the user data in the db table")
+            print(err)
             return response.create_response(
                 f"{response.SOMETHING_WENT_WRONG}",
                 status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -790,7 +758,7 @@ class UserViewSets(viewsets.ModelViewSet):
         """
 
         try:
-            user_data = self.queryset.filter(user_id=request.user_id)
+            user_data = self.queryset.filter(user_id=request.user.id)
             serialized_user_data = self.serializer_class(user_data, many=True)
             return response.create_response(
                 serialized_user_data.data, status.HTTP_200_OK
