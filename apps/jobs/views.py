@@ -16,7 +16,7 @@ from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.exceptions import MethodNotAllowed
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import extend_schema, OpenApiParameter
 
 from apps.accounts.models import User as user_auth
 from apps.accounts.views import Moderator
@@ -31,12 +31,7 @@ from apps.jobs.serializers import (
     FavoriteProfilesSerializer
 )
 from apps.jobs.utils.validators import validationClass
-
 from .utils.user_permissions import UserTypeCheck
-
-# Create your views here.
-# the ModelViewSet provides basic crud methods like create, update etc.
-
 
 class JobViewSets(viewsets.ModelViewSet):
     """
@@ -51,27 +46,33 @@ class JobViewSets(viewsets.ModelViewSet):
 
     queryset = Job.objects.all()
     serializer_class = JobSerializer
-
-    # Defining filters
-    # DjangoFilterBackend allows to use filters in the URL as well (like /api/?company="xyz")
-    # SearchFilter means the same except it'll operate on N number of fields but in the url
-    # it'll be like (/api/company/?search="xyz")
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ["job_role", "location", "is_active"]
-
+    
+    @extend_schema(responses={200: JobSerializer(many=True)})
     @action(detail=False, methods=["get"])
     def public_jobs(self, request):
-        """
-        API: /public_jobs
-        Return only 10-20 jobs
+        """This endpoint give the jobs that are publicly visible jobs
+        Publicly visible jobs are the jobs open to applications
+        TODO: Add pagination to the jobs
         """
 
         jobs_data = self.queryset.filter(is_created=True, is_deleted=False)
         serialized_jobs_data = JobSerializer(jobs_data, many=True)
         return response.create_response(
-            serialized_jobs_data.data[0:2], status.HTTP_200_OK
+            serialized_jobs_data.data[0:2], 
+            status.HTTP_200_OK
         )
-
+    
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name='page',
+                type=int, required=False, default=1,
+                description='Page number.'
+            )
+       ]
+    )
     def list(self, request):
         """
         Overrided the default list action provided by
@@ -91,36 +92,34 @@ class JobViewSets(viewsets.ModelViewSet):
         # overall data present in the Job, exception if wrong
         # uuid value is given.
         try:
-            jobs_data = self.queryset.filter(
-                **filters_dict, is_created=True, is_deleted=False
-            )
+            jobs_data = self.queryset.filter(**filters_dict, is_created=True, is_deleted=False)
         except django.core.exceptions.ValidationError as err:
             return response.create_response(err.messages, status.HTTP_404_NOT_FOUND)
-        else:
-            # Use Paginator for the queryset
-            page_number = request.GET.get("page", 1)
-            paginator = Paginator(jobs_data, values.ITEMS_PER_PAGE)  # 5 items per page
+        
+        # Use Paginator for the queryset
+        page_number = request.GET.get("page", 1)
+        paginator = Paginator(jobs_data, values.ITEMS_PER_PAGE)  # 5 items per page
 
-            try:
-                jobs_data = paginator.page(page_number)
-            except PageNotAnInteger:
-                jobs_data = paginator.page(1)
-            except EmptyPage:
-                return response.create_response([], status.HTTP_200_OK)
+        try:
+            jobs_data = paginator.page(page_number)
+        except PageNotAnInteger:
+            jobs_data = paginator.page(1)
+        except EmptyPage:
+            return response.create_response([], status.HTTP_200_OK)
 
-            serialized_job_data = self.serializer_class(
-                jobs_data, many=True, context={"request": request}
+        serialized_job_data = self.serializer_class(
+            jobs_data, many=True, context={"request": request}
+        )
+
+        # get number of applicants
+        if serialized_job_data:
+            serialized_job_data = JobViewSets.get_number_of_applicants(
+                serialized_job_data
             )
 
-            # get number of applicants
-            if serialized_job_data:
-                serialized_job_data = JobViewSets.get_number_of_applicants(
-                    serialized_job_data
-                )
-
-            return response.create_response(
-                serialized_job_data.data, status.HTTP_200_OK
-            )
+        return response.create_response(
+            serialized_job_data.data, status.HTTP_200_OK
+        )
 
     def create(self, request, *args, **kwargs):
         """Overriding the create method to include permissions"""
@@ -399,6 +398,7 @@ class JobViewSets(viewsets.ModelViewSet):
                 "Status has been updated!!", status.HTTP_200_OK
             )
 
+    # not being used at the moment
     @action(detail=False, methods=["get"])
     def featured_jobs(self, request):
         """
@@ -790,10 +790,7 @@ class UserViewSets(viewsets.ModelViewSet):
         """
 
         try:
-            user_id = request.user_id
-
-            # get user data
-            user_data = self.queryset.filter(user_id=user_id)
+            user_data = self.queryset.filter(user_id=request.user_id)
             serialized_user_data = self.serializer_class(user_data, many=True)
             return response.create_response(
                 serialized_user_data.data, status.HTTP_200_OK
@@ -1019,16 +1016,14 @@ class CompanyViewSets(viewsets.ModelViewSet):
         """
 
         try:
-            company_data = self.queryset.filter(is_created=True, is_deleted=False)
+            company_data = self.queryset.filter(is_deleted=False)
             serialized_company_data = self.serializer_class(
                 company_data, many=True, context={"request": request}
             )
 
             # get number of applicants
             if serialized_company_data:
-                serialized_company_data = JobViewSets.get_active_jobs_count(
-                    serialized_company_data
-                )
+                serialized_company_data = JobViewSets.get_active_jobs_count(serialized_company_data)
 
             return response.create_response(
                 serialized_company_data.data, status.HTTP_200_OK
@@ -1039,32 +1034,22 @@ class CompanyViewSets(viewsets.ModelViewSet):
             )
 
     def retrieve(self, request, pk=None):
-        """
-        retrieve the data of given company id
-        """
-
-        if not validationClass.is_valid_uuid(pk):
-            return response.create_response(
-                f"value {pk} isn't a correct id",
-                status.HTTP_404_NOT_FOUND,
-            )
-
         try:
             # filter based on pk
-            company_data = Company.objects.filter(
-                company_id=pk, is_created=True, is_deleted=False
-            )
+            company_data = Company.objects.filter(company_id=pk)
             serialized_company_data = self.serializer_class(company_data, many=True)
             if serialized_company_data:
-                serialized_company_data = JobViewSets.get_active_jobs_count(
-                    serialized_company_data
-                )
+                serialized_company_data = JobViewSets.get_active_jobs_count(serialized_company_data)
+            
+            # returning the response
             return response.create_response(
-                serialized_company_data.data, status.HTTP_200_OK
+                serialized_company_data.data, 
+                status.HTTP_200_OK
             )
         except Exception:
             return response.create_response(
-                response.SOMETHING_WENT_WRONG, status.HTTP_500_INTERNAL_SERVER_ERROR
+                response.SOMETHING_WENT_WRONG, 
+                status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
     def update(self, request, *args, **kwargs):
@@ -1134,20 +1119,15 @@ class CompanyViewSets(viewsets.ModelViewSet):
 
         return super().destroy(request, *args, **kwargs)
 
+
+    @extend_schema(exclude=True)
     @action(detail=False, methods=["get"])
     def jobs(self, request):
-        """
-        Method to get a list of jobs
-        """
-
         queryset_data = self.get_queryset().filter(is_created=True, is_deleted=False)
         serialized_company_data = self.serializer_class(queryset_data, many=True)
         for company_data in serialized_company_data.data:
             company_id = company_data.get(values.COMPANY_ID)
 
-            # get jobs data by company_id from database
-            # .values() returns the QuerySet
-            # jobData = Job.objects.filter(company=companyId).values()
             job_data = Job.objects.filter(
                 company_id=company_id, is_created=True, is_deleted=False
             )
@@ -1157,6 +1137,7 @@ class CompanyViewSets(viewsets.ModelViewSet):
             serialized_company_data.data, status.HTTP_200_OK
         )
 
+    @extend_schema(exclude=True)
     @action(detail=False, methods=["get"])
     def users(self, request):
         """
@@ -1176,6 +1157,44 @@ class CompanyViewSets(viewsets.ModelViewSet):
             serialized_company_data.data, status.HTTP_200_OK
         )
 
+
+    def create(self, request, *args, **kwargs):
+        # check if the user is a employer or not 
+        # only employers are allowed to create companies
+        if not request.user or not request.user.user_type == "Employer":
+            return Response({"msg": "Unauthorized"}, status.HTTP_401_UNAUTHORIZED)
+
+        # create a company
+        company = Company(**request.data, creator=request.user)
+        company.save()
+
+        # this company that was created also needs to be linked to the user
+        user_profile = User.objects.get(user_id=request.user.id)
+        user_profile.company_id = company
+        user_profile.save()
+
+        user = request.user
+        user.is_profile_completed = True
+        user.save()
+
+        return Response({
+            "msg": "Created", 
+            "company_id": company.company_id
+        }, status.HTTP_201_CREATED)
+
+
+    @action(detail=False, methods=["get"])
+    def me(self, request):
+        if not request.user.is_profile_completed:
+            return Response({
+                "msg": "The user profile is not completed",
+                "detail": "Please create your company's profile."
+            }, status.HTTP_403_FORBIDDEN)
+        
+        # fetch user profile which has the company associated
+        user_profile = User.objects.get(user_id = request.user.id)
+
+        return Response(self.serializer_class(user_profile.company_id).data, status.HTTP_200_OK)
 
 class ContactUsViewSet(viewsets.ModelViewSet):
     """Company object viewsets

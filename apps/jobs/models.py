@@ -21,14 +21,12 @@ class Company(models.Model):
     name = models.CharField(max_length=255, null=False)
     location = models.CharField(max_length=255, null=False)
     about = models.TextField(max_length=500, default=False, null=False)
-    company_id = models.UUIDField(
-        primary_key=True, default=uuid.uuid4, editable=False
-    )  # uuid1 uses network address for random number, so it's better to use uuid4
-    is_created = models.BooleanField(default=False, null=True, editable=False)
+    company_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False) 
     is_deleted = models.BooleanField(default=False, null=True, editable=False)
     team_members = models.PositiveIntegerField(default=False, null=True)
     social_profiles = models.URLField(default=None, null=True)
     founded_year = models.PositiveIntegerField(default=False, null=False)
+    creator = models.OneToOneField(UserAuth, on_delete=models.CASCADE, editable=False)
 
     def __str__(self):
         return self.name
@@ -128,6 +126,9 @@ class User(models.Model):
     phone = models.CharField(max_length=12, default=None, null=True)
     website = models.URLField(default=None, null=True)
     social_handles = models.URLField(default=None, null=True)
+
+    # below fields are only for user_type Employer
+    company_id = models.ForeignKey(Company, default=None, null=True, on_delete=models.CASCADE)
 
     def __str__(self):
         return self.name
