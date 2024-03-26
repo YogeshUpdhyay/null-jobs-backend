@@ -1,24 +1,11 @@
-"""
-This file contains serializers for Job, company and user object
-and an implementation of uuid id hex value.
-
-Note: the argumment `read_only=True` allows the field to only present
-in the output. However at the time of crud opertions, it won't be present.
-"""
-
-import uuid
 from re import findall
-
 from rest_framework import serializers
 
-from apps.jobs.models import Applicants, Company, ContactMessage, Job, User, FavoriteProfiles
-
-# read_only=True allows the field to only present in the output
-# however at the time of crud opertions, it won't be present.
-
+from apps.jobs.models import Company, ContactMessage, Job
 
 class JobSerializer(serializers.ModelSerializer):
     """Job object serializer class"""
+    total_applicants = serializers.IntegerField(read_only=True)
 
     class Meta:
         """
@@ -104,59 +91,6 @@ class CompanySerializer(serializers.ModelSerializer):
         return data
 
 
-class EducationSerializer(serializers.Serializer):
-    from_date = serializers.CharField()
-    till_date = serializers.CharField()
-    grade = serializers.CharField()
-    course = serializers.CharField()
-    university = serializers.CharField()
-    course_type = serializers.CharField()
-
-class ProfessionalSkillsSerializer(serializers.Serializer):
-    last_used = serializers.IntegerField()
-    total_yoe = serializers.IntegerField()
-    skill_name = serializers.CharField()
-
-class WorkExperienceSerializer(serializers.Serializer):
-    from_date = serializers.CharField()
-    till_date = serializers.CharField()
-    company_id = serializers.CharField()
-    description = serializers.CharField()
-    designation = serializers.CharField()
-    company_name = serializers.CharField()
-    found_through_null = serializers.BooleanField()
-
-class UserSerializer(serializers.Serializer):
-    user_id = serializers.CharField(read_only=True)
-    name = serializers.CharField()
-    about = serializers.CharField()
-    resume = serializers.FileField(allow_null=True)
-    profile_picture = serializers.ImageField(allow_null=True)
-    cover_letter = serializers.FileField(allow_null=True)
-    user_type = serializers.CharField()
-    experience = serializers.CharField()
-    gender = serializers.CharField(allow_null=True)
-    age = serializers.IntegerField(allow_null=True)
-    education = EducationSerializer(many=True)
-    professional_skills = ProfessionalSkillsSerializer(many=True)
-    hiring_status = serializers.CharField()
-    profession = serializers.CharField()
-    work_experience = WorkExperienceSerializer(many=True)
-    address = serializers.CharField()
-    phone = serializers.CharField()
-    website = serializers.URLField()
-    email = serializers.EmailField()
-    social_handles = serializers.URLField(allow_null=True)
-
-
-class ApplicantsSerializer(serializers.ModelSerializer):
-    """Applicants object serializer class"""
-
-    class Meta:
-        model = Applicants
-        fields = "__all__"
-
-
 class ContactUsSerializer(serializers.ModelSerializer):
     """Contact us object serializer class"""
 
@@ -171,11 +105,4 @@ class ContactUsSerializer(serializers.ModelSerializer):
             except UnicodeEncodeError:
                 raise serializers.ValidationError("Message must be valid UTF-8 text.")
             return value
-
-
-class FavoriteProfilesSerializer(serializers.ModelSerializer):
-    """FavoriteProfiles object serializer class"""
-
-    class Meta:
-        model = FavoriteProfiles
-        fields = "__all__"
+        

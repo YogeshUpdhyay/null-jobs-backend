@@ -87,7 +87,7 @@ class UserLoginResponseSerializer(serializers.Serializer):
 
 
 # Serializer for showing User profile
-class UserProfileSerializer(serializers.ModelSerializer):
+class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ["id", "email", "name", "is_verified", "is_profile_completed", "is_active"]
